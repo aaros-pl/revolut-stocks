@@ -95,10 +95,15 @@ def populate_exchange_rates(statements, use_bnb):
         exchange_rates = load_exchange_rates()
 
     for statement in statements:
+        # print("\n" + str(statement["trade_date"]))
         if statement["trade_date"] in exchange_rates:
             statement["exchange_rate"] = exchange_rates[statement["trade_date"]]
             statement["exchange_rate_date"] = statement["trade_date"]
             continue
+        # os.system('pause')
+        # print("\n" + "Statement date not in exchange rates")
 
         statement["exchange_rate_date"] = find_last_published_exchange_rate(exchange_rates, statement["trade_date"])
+        # print(str(find_last_published_exchange_rate(exchange_rates, statement["trade_date"])))
         statement["exchange_rate"] = exchange_rates[statement["exchange_rate_date"]]
+        os.system('pause')

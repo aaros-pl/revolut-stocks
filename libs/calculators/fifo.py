@@ -233,3 +233,19 @@ def calculate_win_loss(sales):
         win_loss += sale["profit"] + sale["loss"]
         win_loss_in_currency += sale["profit_in_currency"] + sale["loss_in_currency"]
     return win_loss, win_loss_in_currency
+
+def calculate_win(sales):
+    win = 0
+    win_in_currency = 0
+    for sale in sales:
+        win += sale["profit"]
+        win_in_currency += sale["profit_in_currency"]
+    return win, win_in_currency
+
+def calculate_loss(sales):
+    loss = 0
+    loss_in_currency = 0
+    for sale in sales:
+        loss += sale["loss"]
+        loss_in_currency += sale["loss_in_currency"]
+    return loss, loss_in_currency

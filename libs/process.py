@@ -1,5 +1,5 @@
 from libs.exchange_rates import populate_exchange_rates
-from libs.calculators.fifo import calculate_sales, calculate_remaining_purchases, calculate_dividends, calculate_dividends_tax, calculate_win_loss
+from libs.calculators.fifo import calculate_sales, calculate_remaining_purchases, calculate_dividends, calculate_dividends_tax, calculate_win_loss, calculate_win, calculate_loss
 from libs.csv import export_statements, export_app8_part1, export_app5_table2, export_app8_part4_1
 from libs.xml import export_to_xml
 from libs.utils import merge_dict_of_dicts, merge_dict_of_lists, get_unsupported_activity_types
@@ -104,13 +104,13 @@ def process(input_dir, output_dir, parser_names, use_bnb, in_currency=False):
 
         export_app5_table2(os.path.join(output_dir, "app5-table2.csv"), merged_sales)
 
-    logger.info(f"Generating [dec50_2020_data.xml] file.")
-    export_to_xml(
-        os.path.join(output_dir, "dec50_2020_data.xml"),
-        dividend_taxes,
-        merged_sales if merged_sales is not None else None,
-        remaining_purchases if remaining_purchases is not None else None,
-    )
+    # logger.info(f"Generating [dec50_2020_data.xml] file.")
+    # export_to_xml(
+    #     os.path.join(output_dir, "dec50_2020_data.xml"),
+    #     dividend_taxes,
+    #     merged_sales if merged_sales is not None else None,
+    #     remaining_purchases if remaining_purchases is not None else None,
+    # )
 
     if remaining_purchases is not None:
         logger.info(f"Generating [app8-part1.csv] file.")
@@ -118,10 +118,16 @@ def process(input_dir, output_dir, parser_names, use_bnb, in_currency=False):
 
     if merged_sales is not None:
         win_loss, win_loss_in_currency = calculate_win_loss(merged_sales)
+        win, win_in_currency = calculate_win(merged_sales)
+        loss, loss_in_currency = calculate_loss(merged_sales)
         if in_currency:
+            logger.info(f"Profit: {win_in_currency} USD.")
+            logger.info(f"Loss: {loss_in_currency} USD.")
             logger.info(f"Profit/Loss: {win_loss_in_currency} USD.")
 
-        logger.info(f"Profit/Loss: {win_loss} lev.")
+        logger.info(f"Profit: {win} zł.")
+        logger.info(f"Loss: {loss} zł.")
+        logger.info(f"Profit/Loss: {win_loss} zł.")
 
     if len(unsupported_activity_types) > 0:
         logger.warning(f"Statements contain unsupported activity types: {unsupported_activity_types}. Only dividends related data was calculated.")
