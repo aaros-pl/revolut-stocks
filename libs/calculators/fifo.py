@@ -18,12 +18,36 @@ import decimal
 decimal.getcontext().rounding = decimal.ROUND_HALF_UP
 
 
+def get_old_symbol(symbol_description):
+    try:
+        start_index = symbol_description.index("SC:") + 3
+        end_index = symbol_description.index(">", start_index) - 1
+        return symbol_description[start_index:end_index]
+    except ValueError:
+        logging.error(f"Could not find old symbol for symbol change: [{symbol_description}].")
+        raise SystemExit(1)
+
+
 def calculate_sales(statements):
     purchases = {}
     sales = []
     ssp_surrendered_data = {}
-    for statement in statements:
+
+    for index, statement in enumerate(statements):
         stock_symbol = statement.get("symbol", None)
+
+        if statement["activity_type"] == "SC":
+            old_symbol = get_old_symbol(statement["symbol_description"])
+            logger.debug(f"[SC] ns:[{stock_symbol}] os:[{old_symbol}]")
+
+            if old_symbol in sales:
+                sales[stock_symbol] = sales[old_symbol]
+
+            if old_symbol in purchases:
+                purchases[stock_symbol] = purchases[old_symbol]
+
+            if old_symbol in ssp_surrendered_data:
+                ssp_surrendered_data[stock_symbol] = ssp_surrendered_data[old_symbol]
 
         if statement["activity_type"] == "BUY":
             activity_quantity = abs(statement.get("quantity", 0))
@@ -48,6 +72,15 @@ def calculate_sales(statements):
             logger.debug(
                 f"[SELL] [{stock_symbol}] td:[{statement['trade_date']}] qt:[{activity_quantity}] pr:[{statement['price']}] ex:[{statement['exchange_rate']}]"
             )
+
+            next_statement = statements[index + 1] if index + 1 < len(statements) else None
+
+            if next_statement is not None and next_statement["activity_type"] == "SELL CANCEL" and next_statement.get("symbol", None) == stock_symbol:
+                next_statement_quantity = abs(statement.get("quantity", 0))
+                logger.debug(
+                    f"[SELL CANCEL] [{stock_symbol}] td:[{next_statement['trade_date']}] qt:[{next_statement_quantity}] pr:[{next_statement['price']}] ex:[{next_statement['exchange_rate']}]"
+                )
+                continue
 
             if stock_symbol not in purchases or len(purchases[stock_symbol]) == 0:
                 logging.warn(f"No purchase information found for: [{stock_symbol}].")
@@ -196,6 +229,12 @@ def calculate_dividends_tax(dividends):
 def calculate_dividends(statements):
     dividends = {}
     for statement in statements:
+
+        if statement["activity_type"] == "SC":
+            old_symbol = get_old_symbol(statement["symbol_description"])
+
+            if old_symbol in dividends:
+                dividends[stock_symbol] = dividends[old_symbol]
 
         if statement["activity_type"] in RECEIVED_DIVIDEND_ACTIVITY_TYPES or statement["activity_type"] in TAX_DIVIDEND_ACTIVITY_TYPES:
             stock_symbol = statement["symbol"]

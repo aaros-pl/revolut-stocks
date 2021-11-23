@@ -17,12 +17,10 @@ logger = logging.getLogger("parsers")
 
 REVOLUT_DATE_FORMAT = "%m/%d/%Y"
 
-REVOLUT_ACTIVITY_TYPES = (
-    ["SELL", "BUY", "SSP", "SSO", "MAS"] + RECEIVED_DIVIDEND_ACTIVITY_TYPES + TAX_DIVIDEND_ACTIVITY_TYPES
-)
+REVOLUT_ACTIVITY_TYPES = ["SELL", "SELL CANCEL", "BUY", "SSP", "SSO", "MAS", "SC"] + RECEIVED_DIVIDEND_ACTIVITY_TYPES + TAX_DIVIDEND_ACTIVITY_TYPES
 REVOLUT_CASH_ACTIVITY_TYPES = ["CDEP", "CSD"]
 REVOLUT_OUT_OF_ORDER_ACTIVITY_TYPES = ["SSP", "MAS"]
-REVOLUT_UNSUPPORTED_ACTIVITY_TYPES = ["SC", "NC", "MA"]
+REVOLUT_UNSUPPORTED_ACTIVITY_TYPES = ["NC", "MA"]
 REVOLUT_NO_COMPANY_ACTIVITY_TYPES = ["SSO"]
 REVOLUT_ACTIVITIES_PAGES_INDICATORS = ["Balance Summary", "ACTIVITY", "Equity"]
 REVOLUT_DIGIT_PRECISION = "0.00000001"
@@ -160,10 +158,26 @@ class Parser(StatementFilesParser):
 
         return activities
 
-    def get_first_non_ssp_activity_index(self, statements):
+    def get_first_non_out_of_order_activity_index(self, statements):
         for index, statement in enumerate(statements):
             if statement["activity_type"] not in REVOLUT_OUT_OF_ORDER_ACTIVITY_TYPES:
                 return index
+
+        return None
+
+    def get_sorting_date(self, statements):
+        sorting_index = self.get_first_non_out_of_order_activity_index(statements)
+
+        if sorting_index is None:
+            if not self.sorting_dates:
+                logger.error("No previous purchase information found for out of order activities.")
+                raise SystemExit(1)
+
+            return self.sorting_dates[-1]
+
+        trade_date = statements[sorting_index]["trade_date"]
+        self.sorting_dates.append(trade_date)
+        return trade_date
 
     def parse(self):
         statements = []
@@ -185,7 +199,8 @@ class Parser(StatementFilesParser):
                     continue
                 statements.append(activities)
 
-        statements = sorted(statements, key=lambda k: k[self.get_first_non_ssp_activity_index(k)]["trade_date"])
+        self.sorting_dates = []
+        statements = sorted(statements, key=lambda k: self.get_sorting_date(k))
         return [activity for activities in statements for activity in activities]
 
     @staticmethod
